@@ -46,32 +46,14 @@ export default function AnalyticsPage() {
   // Combined function to fetch all data with better error handling
   const fetchAllData = async () => {
     setLoading(true);
-    const token = localStorage.getItem('adminToken');
     
-    console.log('Analytics: Checking token...', token ? 'Token found' : 'No token');
-    
-    if (!token) {
-      console.log('Analytics: No token found, redirecting to login');
-      toast.error('Please login to view analytics');
-      setLoading(false);
-      // Redirect to login page
-      window.location.href = '/login';
-      return;
-    }
+    console.log('Analytics: Fetching data without authentication...');
 
     try {
       // Use Promise.allSettled to handle multiple requests safely
       const [analyticsResponse, orderStatusResponse] = await Promise.allSettled([
-        fetch(`${API_ENDPOINTS.analytics}?days=${timeRange}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }),
-        fetch(`${API_ENDPOINTS.analyticsOrders}?days=${timeRange}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
+        fetch(`${API_ENDPOINTS.analytics}?days=${timeRange}`),
+        fetch(`${API_ENDPOINTS.analyticsOrders}?days=${timeRange}`)
       ]);
 
       // Handle analytics data
@@ -81,12 +63,7 @@ export default function AnalyticsPage() {
         setAnalyticsData(data);
       } else if (analyticsResponse.status === 'fulfilled') {
         const status = analyticsResponse.value.status;
-        if (status === 401) {
-          toast.error('Authentication failed. Please login again.');
-          localStorage.removeItem('adminToken');
-          window.location.href = '/login';
-          return;
-        } else if (status === 429) {
+        if (status === 429) {
           toast.error('Too many requests. Please wait a moment and try again.');
         } else {
           console.error('Analytics request failed:', status, analyticsResponse.value.statusText);
@@ -103,10 +80,7 @@ export default function AnalyticsPage() {
         setOrderStatusData(data);
       } else if (orderStatusResponse.status === 'fulfilled') {
         const status = orderStatusResponse.value.status;
-        if (status === 401) {
-          // Authentication failed - already handled above
-          return;
-        } else if (status === 429) {
+        if (status === 429) {
           console.warn('Rate limited on order status data');
         } else {
           console.error('Failed to fetch order status data:', status);
@@ -126,12 +100,7 @@ export default function AnalyticsPage() {
   // Individual fetch functions for manual refresh (if needed)
   const fetchAnalyticsData = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_ENDPOINTS.analytics}?days=${timeRange}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(`${API_ENDPOINTS.analytics}?days=${timeRange}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -151,12 +120,7 @@ export default function AnalyticsPage() {
 
   const fetchOrderStatusData = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_ENDPOINTS.analyticsOrders}?days=${timeRange}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(`${API_ENDPOINTS.analyticsOrders}?days=${timeRange}`);
       
       if (response.ok) {
         const data = await response.json();
