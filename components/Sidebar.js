@@ -82,6 +82,11 @@ import {
       href: '/cms',
       icon: ChartBarIcon,
     },
+     {
+      name: 'Shopify Example Api',
+      href: '/shopify-example',
+      icon: ChartBarIcon,
+    },
   ];
 
   return (

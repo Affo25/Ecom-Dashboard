@@ -863,8 +863,624 @@ async function updateProductVariant(variantId, variantData) {
   }
 }
 
+// ======================
+// ORDERS FUNCTIONS
+// ======================
+
+// Fetch orders from Shopify
+async function fetchOrders(first = 10, after = null, query = "") {
+  const graphqlQuery = `
+    query getOrders($first: Int!, $after: String, $query: String) {
+      orders(first: $first, after: $after, query: $query) {
+        edges {
+          node {
+            id
+            name
+            orderNumber
+            createdAt
+            updatedAt
+            cancelledAt
+            closedAt
+            processedAt
+            totalPrice
+            subtotalPrice
+            totalTax
+            totalDiscounts
+            totalShipping: totalShippingPriceV2 {
+              amount
+              currencyCode
+            }
+            financialStatus
+            fulfillmentStatus
+            displayFulfillmentStatus
+            displayFinancialStatus
+            customer {
+              id
+              displayName
+              email
+              firstName
+              lastName
+            }
+            shippingAddress {
+              firstName
+              lastName
+              company
+              address1
+              address2
+              city
+              province
+              country
+              zip
+              phone
+            }
+            lineItems(first: 10) {
+              edges {
+                node {
+                  id
+                  title
+                  quantity
+                  variant {
+                    id
+                    title
+                    price
+                    sku
+                  }
+                  product {
+                    id
+                    title
+                    handle
+                  }
+                }
+              }
+            }
+            fulfillments(first: 5) {
+              trackingCompany
+              trackingNumber
+              trackingUrl
+              status
+              createdAt
+            }
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    first,
+    after,
+    query: query || null
+  };
+
+  return await shopifyGraphQL(graphqlQuery, variables);
+}
+
+// Fetch single order by ID
+async function fetchOrderById(orderId) {
+  const graphqlQuery = `
+    query getOrder($id: ID!) {
+      order(id: $id) {
+        id
+        name
+        orderNumber
+        createdAt
+        updatedAt
+        cancelledAt
+        closedAt
+        processedAt
+        totalPrice
+        subtotalPrice
+        totalTax
+        totalDiscounts
+        financialStatus
+        fulfillmentStatus
+        displayFulfillmentStatus
+        displayFinancialStatus
+        customer {
+          id
+          displayName
+          email
+          firstName
+          lastName
+          phone
+        }
+        shippingAddress {
+          firstName
+          lastName
+          company
+          address1
+          address2
+          city
+          province
+          country
+          zip
+          phone
+        }
+        lineItems(first: 50) {
+          edges {
+            node {
+              id
+              title
+              quantity
+              variant {
+                id
+                title
+                price
+                sku
+              }
+              product {
+                id
+                title
+                handle
+              }
+            }
+          }
+        }
+        fulfillments(first: 10) {
+          trackingCompany
+          trackingNumber
+          trackingUrl
+          status
+          createdAt
+        }
+      }
+    }
+  `;
+
+  const variables = { id: orderId };
+  return await shopifyGraphQL(graphqlQuery, variables);
+}
+
+// Update order status
+async function updateOrderStatus(orderId, status, note = null) {
+  const graphqlMutation = `
+    mutation orderUpdate($input: OrderInput!) {
+      orderUpdate(input: $input) {
+        order {
+          id
+          displayFulfillmentStatus
+          displayFinancialStatus
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: orderId,
+      note: note
+    }
+  };
+
+  return await shopifyGraphQL(graphqlMutation, variables);
+}
+
+// ======================
+// CUSTOMERS FUNCTIONS
+// ======================
+
+// Fetch customers from Shopify
+async function fetchCustomers(first = 10, after = null, query = "") {
+  const graphqlQuery = `
+    query getCustomers($first: Int!, $after: String, $query: String) {
+      customers(first: $first, after: $after, query: $query) {
+        edges {
+          node {
+            id
+            displayName
+            firstName
+            lastName
+            email
+            phone
+            createdAt
+            updatedAt
+            numberOfOrders
+            totalSpent
+            tags
+            state
+            emailMarketingConsent {
+              marketingState
+              consentUpdatedAt
+            }
+            addresses(first: 5) {
+              firstName
+              lastName
+              company
+              address1
+              address2
+              city
+              province
+              country
+              zip
+              phone
+            }
+            defaultAddress {
+              firstName
+              lastName
+              company
+              address1
+              address2
+              city
+              province
+              country
+              zip
+              phone
+            }
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    first,
+    after,
+    query: query || null
+  };
+
+  return await shopifyGraphQL(graphqlQuery, variables);
+}
+
+// Fetch single customer by ID
+async function fetchCustomerById(customerId) {
+  const graphqlQuery = `
+    query getCustomer($id: ID!) {
+      customer(id: $id) {
+        id
+        displayName
+        firstName
+        lastName
+        email
+        phone
+        createdAt
+        updatedAt
+        numberOfOrders
+        totalSpent
+        tags
+        state
+        emailMarketingConsent {
+          marketingState
+          consentUpdatedAt
+        }
+        addresses(first: 10) {
+          firstName
+          lastName
+          company
+          address1
+          address2
+          city
+          province
+          country
+          zip
+          phone
+        }
+        defaultAddress {
+          firstName
+          lastName
+          company
+          address1
+          address2
+          city
+          province
+          country
+          zip
+          phone
+        }
+        orders(first: 10) {
+          edges {
+            node {
+              id
+              name
+              totalPrice
+              displayFinancialStatus
+              createdAt
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const variables = { id: customerId };
+  return await shopifyGraphQL(graphqlQuery, variables);
+}
+
+// Create a new customer
+async function createCustomer(customerData) {
+  const graphqlMutation = `
+    mutation customerCreate($input: CustomerInput!) {
+      customerCreate(input: $input) {
+        customer {
+          id
+          displayName
+          firstName
+          lastName
+          email
+          phone
+          createdAt
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: customerData
+  };
+
+  const result = await shopifyGraphQL(graphqlMutation, variables);
+  
+  if (result.customerCreate.userErrors && result.customerCreate.userErrors.length > 0) {
+    console.error("Customer creation errors:", result.customerCreate.userErrors);
+    throw new Error("Failed to create customer: " + result.customerCreate.userErrors.map(e => e.message).join(", "));
+  }
+
+  return result.customerCreate;
+}
+
+// Update an existing customer
+async function updateCustomer(customerId, customerData) {
+  const graphqlMutation = `
+    mutation customerUpdate($input: CustomerInput!) {
+      customerUpdate(input: $input) {
+        customer {
+          id
+          displayName
+          firstName
+          lastName
+          email
+          phone
+          updatedAt
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: customerId,
+      ...customerData
+    }
+  };
+
+  const result = await shopifyGraphQL(graphqlMutation, variables);
+  
+  if (result.customerUpdate.userErrors && result.customerUpdate.userErrors.length > 0) {
+    console.error("Customer update errors:", result.customerUpdate.userErrors);
+    throw new Error("Failed to update customer: " + result.customerUpdate.userErrors.map(e => e.message).join(", "));
+  }
+
+  return result.customerUpdate;
+}
+
+// ======================
+// COLLECTIONS FUNCTIONS
+// ======================
+
+// Fetch collections from Shopify
+async function fetchCollections(first = 10, after = null, query = "") {
+  const graphqlQuery = `
+    query getCollections($first: Int!, $after: String, $query: String) {
+      collections(first: $first, after: $after, query: $query) {
+        edges {
+          node {
+            id
+            title
+            handle
+            description
+            descriptionHtml
+            updatedAt
+            productsCount {
+              count
+            }
+            image {
+              url
+              altText
+            }
+            seo {
+              title
+              description
+            }
+            sortOrder
+            products(first: 5) {
+              edges {
+                node {
+                  id
+                  title
+                  handle
+                }
+              }
+            }
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    first,
+    after,
+    query: query || null
+  };
+
+  return await shopifyGraphQL(graphqlQuery, variables);
+}
+
+// Fetch single collection by ID
+async function fetchCollectionById(collectionId) {
+  const graphqlQuery = `
+    query getCollection($id: ID!) {
+      collection(id: $id) {
+        id
+        title
+        handle
+        description
+        descriptionHtml
+        updatedAt
+        productsCount {
+          count
+        }
+        image {
+          url
+          altText
+        }
+        seo {
+          title
+          description
+        }
+        sortOrder
+        products(first: 50) {
+          edges {
+            node {
+              id
+              title
+              handle
+              status
+              vendor
+              productType
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const variables = { id: collectionId };
+  return await shopifyGraphQL(graphqlQuery, variables);
+}
+
+// Create a new collection
+async function createCollection(collectionData) {
+  const graphqlMutation = `
+    mutation collectionCreate($input: CollectionInput!) {
+      collectionCreate(input: $input) {
+        collection {
+          id
+          title
+          handle
+          description
+          updatedAt
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: collectionData
+  };
+
+  const result = await shopifyGraphQL(graphqlMutation, variables);
+  
+  if (result.collectionCreate.userErrors && result.collectionCreate.userErrors.length > 0) {
+    console.error("Collection creation errors:", result.collectionCreate.userErrors);
+    throw new Error("Failed to create collection: " + result.collectionCreate.userErrors.map(e => e.message).join(", "));
+  }
+
+  return result.collectionCreate;
+}
+
+// Update an existing collection
+async function updateCollection(collectionId, collectionData) {
+  const graphqlMutation = `
+    mutation collectionUpdate($input: CollectionInput!) {
+      collectionUpdate(input: $input) {
+        collection {
+          id
+          title
+          handle
+          description
+          updatedAt
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: collectionId,
+      ...collectionData
+    }
+  };
+
+  const result = await shopifyGraphQL(graphqlMutation, variables);
+  
+  if (result.collectionUpdate.userErrors && result.collectionUpdate.userErrors.length > 0) {
+    console.error("Collection update errors:", result.collectionUpdate.userErrors);
+    throw new Error("Failed to update collection: " + result.collectionUpdate.userErrors.map(e => e.message).join(", "));
+  }
+
+  return result.collectionUpdate;
+}
+
+// Delete a collection
+async function deleteCollection(collectionId) {
+  const graphqlMutation = `
+    mutation collectionDelete($input: CollectionDeleteInput!) {
+      collectionDelete(input: $input) {
+        deletedCollectionId
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    input: {
+      id: collectionId
+    }
+  };
+
+  const result = await shopifyGraphQL(graphqlMutation, variables);
+  
+  if (result.collectionDelete.userErrors && result.collectionDelete.userErrors.length > 0) {
+    console.error("Collection deletion errors:", result.collectionDelete.userErrors);
+    throw new Error("Failed to delete collection: " + result.collectionDelete.userErrors.map(e => e.message).join(", "));
+  }
+
+  return result.collectionDelete;
+}
+
 module.exports = { 
+  // Core functions
   shopifyGraphQL,
+  
+  // Product functions
   fetchProducts,
   fetchAllProducts,
   createProduct,
@@ -879,5 +1495,23 @@ module.exports = {
   setProductCategory,
   publishProductToChannel,
   publishProductToMultipleChannels,
-  fetchPublications
+  fetchPublications,
+  
+  // Order functions
+  fetchOrders,
+  fetchOrderById,
+  updateOrderStatus,
+  
+  // Customer functions
+  fetchCustomers,
+  fetchCustomerById,
+  createCustomer,
+  updateCustomer,
+  
+  // Collection functions
+  fetchCollections,
+  fetchCollectionById,
+  createCollection,
+  updateCollection,
+  deleteCollection
 };
